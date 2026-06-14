@@ -21,3 +21,6 @@ yarn-error.log*
 
 # Drizzle
 drizzle/meta/
+
+# clerk configuration (can include secrets)
+/.clerk/

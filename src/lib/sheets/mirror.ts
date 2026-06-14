@@ -8,6 +8,7 @@ import "server-only";
 import { getSheetsClient, getSheetId } from "./client";
 import type { Draft } from "@/lib/db/schema";
 
+// MUST match the header order produced by scripts/setup-sheet.gs.
 const DRAFTS_HEADER_ORDER = [
   "draft_id",
   "company_id",
@@ -34,6 +35,9 @@ const DRAFTS_HEADER_ORDER = [
   "copy_warnings",
   "created_at",
   "created_by",
+  "model_used",
+  "latency_ms",
+  "mode",
 ] as const;
 
 function draftToRow(draft: Draft): (string | number | null)[] {
@@ -89,6 +93,12 @@ function draftToRow(draft: Draft): (string | number | null)[] {
         return draft.createdAt instanceof Date ? draft.createdAt.toISOString() : String(draft.createdAt ?? "");
       case "created_by":
         return draft.createdBy;
+      case "model_used":
+        return draft.modelUsed;
+      case "latency_ms":
+        return draft.latencyMs;
+      case "mode":
+        return draft.mode;
       default:
         return "";
     }
