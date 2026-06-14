@@ -171,13 +171,20 @@ function DraftRow({ draft }: { draft: DraftListRow }) {
     >
       <td className="px-4 py-3 align-top">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <Link
-            href={`/dashboard/drafts/${draft.id}`}
-            className="block truncate text-sm font-medium hover:underline"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {draft.companyName ?? "(unknown company)"}
-          </Link>
+          {draft.companyId ? (
+            <Link
+              href={`/dashboard/companies/${draft.companyId}`}
+              className="block truncate text-sm font-medium hover:underline"
+              onClick={(e) => e.stopPropagation()}
+              title={`Open ${draft.companyName ?? "company"} profile`}
+            >
+              {draft.companyName ?? "(unknown company)"}
+            </Link>
+          ) : (
+            <span className="block truncate text-sm font-medium text-muted-foreground">
+              (unknown company)
+            </span>
+          )}
           <div className="truncate text-xs text-muted-foreground">
             <span>{draft.contactName ?? "(no contact)"}</span>
             {draft.contactType ? (

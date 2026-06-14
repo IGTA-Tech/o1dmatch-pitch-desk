@@ -25,7 +25,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "New draft", icon: Sparkles },
   { href: "/dashboard/drafts", label: "Drafts", icon: FileText },
-  { href: "/dashboard/companies", label: "Companies", icon: Building2, disabled: true },
+  { href: "/dashboard/companies", label: "Companies", icon: Building2 },
   { href: "/dashboard/contacts", label: "Contacts", icon: Users, disabled: true },
   { href: "/dashboard/activity", label: "Activity", icon: Activity, disabled: true },
   { href: "/dashboard/settings", label: "Settings", icon: Settings, disabled: true },
