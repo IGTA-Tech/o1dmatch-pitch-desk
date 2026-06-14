@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -53,29 +53,30 @@ export function ControlsPanel({
   const showCustomGoal = value.goal === "Custom";
 
   return (
-    <Card>
-      <CardHeader>
-        <div>
-          <CardTitle>3. Campaign controls</CardTitle>
-          <CardDescription>
-            Sub-pitch overrides pitch type. Custom notes override presets.
-          </CardDescription>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Field label="Sender">
-          <Select value={value.sender} onValueChange={(v) => set("sender", v)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Pick a sender" />
-            </SelectTrigger>
-            <SelectContent>
-              {senders.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {s}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <div className="space-y-5">
+      <div>
+        <h3 className="text-sm font-semibold tracking-tight">Campaign controls</h3>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Sub-pitch overrides pitch type. Custom notes override presets.
+        </p>
+      </div>
+      <div className="space-y-4">
+        <Field
+          label="Sender"
+          hint="Pick from the list or type a custom name. Auto-suggestions appear as you type."
+        >
+          <Input
+            list="sender-options"
+            value={value.sender}
+            onChange={(e) => set("sender", e.target.value)}
+            placeholder="Pick or type a sender name"
+            autoComplete="off"
+          />
+          <datalist id="sender-options">
+            {senders.map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
         </Field>
 
         <Field label="Pitch type">
@@ -238,7 +239,7 @@ export function ControlsPanel({
             </p>
           ) : null}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

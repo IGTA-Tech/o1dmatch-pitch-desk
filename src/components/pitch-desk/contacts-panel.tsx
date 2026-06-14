@@ -1,6 +1,5 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -45,20 +44,20 @@ export function ContactsPanel({
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <div className="space-y-4">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <CardTitle>2. Contacts</CardTitle>
-          <CardDescription>
+          <h3 className="text-sm font-semibold tracking-tight">Contacts</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
             Add every contact for this company. Generation drafts for the selected one.
-          </CardDescription>
+          </p>
         </div>
         <Button variant="outline" size="sm" onClick={add}>
           <Plus className="size-3.5" />
           Add contact
         </Button>
-      </CardHeader>
-      <CardContent className="space-y-3">
+      </div>
+      <div className="space-y-3">
         {contacts.map((c, i) => {
           const isSelected = i === selectedIndex;
           return (
@@ -149,7 +148,7 @@ export function ContactsPanel({
             </div>
           );
         })}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

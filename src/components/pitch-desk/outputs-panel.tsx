@@ -1,12 +1,5 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CopyButton } from "./copy-button";
@@ -98,13 +91,13 @@ function EmptyState() {
 
 export function OutputsPanel({ output, isGenerating, modelUsed, fellBack }: Props) {
   return (
-    <Card>
-      <CardHeader>
+    <div className="rounded-xl border border-border bg-card">
+      <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-border/60">
         <div>
-          <CardTitle>4. Generated outputs</CardTitle>
-          <CardDescription>
+          <h3 className="text-sm font-semibold tracking-tight">Generated outputs</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
             Every block has its own copy button. Review the QC notes before sending.
-          </CardDescription>
+          </p>
         </div>
         {modelUsed ? (
           <div className="flex items-center gap-1.5">
@@ -118,8 +111,8 @@ export function OutputsPanel({ output, isGenerating, modelUsed, fellBack }: Prop
             ) : null}
           </div>
         ) : null}
-      </CardHeader>
-      <CardContent className="space-y-4">
+      </div>
+      <div className="space-y-4 px-5 py-4">
         {isGenerating && !output ? <Skeleton /> : null}
         {!isGenerating && !output ? <EmptyState /> : null}
 
@@ -325,7 +318,7 @@ export function OutputsPanel({ output, isGenerating, modelUsed, fellBack }: Prop
             ) : null}
           </>
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
