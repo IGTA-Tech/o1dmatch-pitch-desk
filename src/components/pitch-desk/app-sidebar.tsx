@@ -27,7 +27,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard/drafts", label: "Drafts", icon: FileText },
   { href: "/dashboard/companies", label: "Companies", icon: Building2 },
   { href: "/dashboard/contacts", label: "Contacts", icon: Users },
-  { href: "/dashboard/activity", label: "Activity", icon: Activity, disabled: true },
+  { href: "/dashboard/activity", label: "Activity", icon: Activity },
   { href: "/dashboard/settings", label: "Settings", icon: Settings, disabled: true },
 ];
 
