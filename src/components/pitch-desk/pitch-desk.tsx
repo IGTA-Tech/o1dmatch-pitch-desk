@@ -218,9 +218,10 @@ export function PitchDesk({ settings, mockMode }: Props) {
         </div>
       </section>
 
-      {/* Right: sticky output */}
+      {/* Right: output panel - capped to viewport height on lg+ so long drafts
+          scroll inside the panel instead of pushing the whole page down. */}
       <section className="min-w-0">
-        <div className="lg:sticky lg:top-[4.5rem]">
+        <div className="lg:sticky lg:top-[4.5rem] lg:h-[calc(100svh-5.5rem)]">
           <OutputsPanel
             output={output}
             isGenerating={isGenerating}

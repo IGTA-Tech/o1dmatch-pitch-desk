@@ -91,28 +91,31 @@ function EmptyState() {
 
 export function OutputsPanel({ output, isGenerating, modelUsed, fellBack }: Props) {
   return (
-    <div className="rounded-xl border border-border bg-card">
-      <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-border/60">
-        <div>
+    <div className="flex flex-col rounded-xl border border-border bg-card lg:h-full">
+      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border/60 px-5 py-4">
+        <div className="min-w-0">
           <h3 className="text-sm font-semibold tracking-tight">Generated outputs</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Every block has its own copy button. Review the QC notes before sending.
           </p>
         </div>
         {modelUsed ? (
-          <div className="flex items-center gap-1.5">
-            <Badge variant="outline" className="font-mono text-[10px] uppercase">
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Badge
+              variant="outline"
+              className="whitespace-nowrap font-mono text-[10px] normal-case"
+            >
               {modelUsed}
             </Badge>
             {fellBack ? (
-              <Badge variant="warning" className="text-[10px] uppercase">
+              <Badge variant="warning" className="whitespace-nowrap text-[10px] uppercase">
                 fallback
               </Badge>
             ) : null}
           </div>
         ) : null}
       </div>
-      <div className="space-y-4 px-5 py-4">
+      <div className="space-y-4 px-5 py-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
         {isGenerating && !output ? <Skeleton /> : null}
         {!isGenerating && !output ? <EmptyState /> : null}
 
