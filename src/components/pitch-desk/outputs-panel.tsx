@@ -3,6 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CopyButton } from "./copy-button";
+import { GenerationStatus, type BulkProgress } from "./generation-status";
 import type { PitchDeskOutput } from "@/lib/ai/schema";
 import { countWords } from "@/lib/utils";
 import { AlertTriangle, FileText, MessageCircle, Phone, Target } from "lucide-react";
@@ -12,6 +13,10 @@ interface Props {
   isGenerating: boolean;
   modelUsed?: string;
   fellBack?: boolean;
+  /** Set on "Generate for all contacts" runs so we can show "X of Y". */
+  bulkProgress?: BulkProgress | null;
+  /** Hint to display in the status text while the call is in flight. */
+  generatingModel?: string;
 }
 
 function OutputCard({
@@ -89,7 +94,14 @@ function EmptyState() {
   );
 }
 
-export function OutputsPanel({ output, isGenerating, modelUsed, fellBack }: Props) {
+export function OutputsPanel({
+  output,
+  isGenerating,
+  modelUsed,
+  fellBack,
+  bulkProgress,
+  generatingModel,
+}: Props) {
   return (
     <div className="flex flex-col rounded-xl border border-border bg-card lg:h-full">
       <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border/60 px-5 py-4">
@@ -115,6 +127,11 @@ export function OutputsPanel({ output, isGenerating, modelUsed, fellBack }: Prop
           </div>
         ) : null}
       </div>
+      <GenerationStatus
+        isGenerating={isGenerating}
+        modelHint={generatingModel}
+        bulkProgress={bulkProgress}
+      />
       <div className="space-y-4 px-5 py-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
         {isGenerating && !output ? <Skeleton /> : null}
         {!isGenerating && !output ? <EmptyState /> : null}

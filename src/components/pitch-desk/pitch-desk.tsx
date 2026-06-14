@@ -45,6 +45,11 @@ export function PitchDesk({ settings, mockMode }: Props) {
   const [output, setOutput] = React.useState<PitchDeskOutput | null>(null);
   const [meta, setMeta] = React.useState<{ modelUsed: string; fellBack: boolean } | null>(null);
   const [isGenerating, setIsGenerating] = React.useState(false);
+  const [bulkProgress, setBulkProgress] = React.useState<{
+    current: number;
+    total: number;
+    contactName: string;
+  } | null>(null);
 
   const buildInput = React.useCallback(
     (index: number, mode: "primary" | "bulk"): GenerateInput => {
@@ -118,25 +123,41 @@ export function PitchDesk({ settings, mockMode }: Props) {
       return;
     }
     setIsGenerating(true);
+    let successCount = 0;
     try {
-      for (let i = 0; i < contacts.length; i++) {
-        if (!contacts[i].contact_name.trim()) continue;
+      const indices = contacts
+        .map((c, i) => (c.contact_name.trim() ? i : -1))
+        .filter((i) => i >= 0);
+      const total = indices.length;
+
+      for (let step = 0; step < total; step++) {
+        const i = indices[step];
+        const target = contacts[i];
+        setBulkProgress({
+          current: step + 1,
+          total,
+          contactName: target.contact_name,
+        });
         const result = await generateDraftAction(buildInput(i, "bulk"));
         if (!result.ok || !result.output) {
-          toast.error(`Contact ${i + 1}: ${result.error ?? "failed"}`);
+          toast.error(`${target.contact_name}: ${result.error ?? "failed"}`);
           continue;
         }
-        if (i === contacts.length - 1) {
-          setOutput(result.output);
-          setMeta({
-            modelUsed: result.meta?.modelUsed ?? "unknown",
-            fellBack: !!result.meta?.fellBack,
-          });
-        }
+        successCount++;
+        // Show the latest completed output as we go so the user sees output
+        // accumulating, not just at the end.
+        setOutput(result.output);
+        setMeta({
+          modelUsed: result.meta?.modelUsed ?? "unknown",
+          fellBack: !!result.meta?.fellBack,
+        });
       }
-      toast.success(`Generated ${valid.length} drafts.`);
+      if (successCount > 0) {
+        toast.success(`Generated ${successCount} of ${total} drafts.`);
+      }
     } finally {
       setIsGenerating(false);
+      setBulkProgress(null);
     }
   }, [company.company_name, contacts, buildInput]);
 
@@ -227,6 +248,7 @@ export function PitchDesk({ settings, mockMode }: Props) {
             isGenerating={isGenerating}
             modelUsed={meta?.modelUsed}
             fellBack={meta?.fellBack}
+            bulkProgress={bulkProgress}
           />
         </div>
       </section>
