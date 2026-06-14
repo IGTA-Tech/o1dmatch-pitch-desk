@@ -130,8 +130,16 @@ export function DraftsTable({ initial, initialFilters, senders, pitchTypes }: Pr
       {initial.length === 0 ? (
         <EmptyState hasFilters={Boolean(hasFilters)} />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
-          <table className="w-full">
+        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+          <table className="w-full min-w-[1100px] table-fixed">
+            <colgroup>
+              <col className="w-[22%]" />
+              <col className="w-[26%]" />
+              <col className="w-[16%]" />
+              <col className="w-[18%]" />
+              <col className="w-[12%]" />
+              <col className="w-[6%]" />
+            </colgroup>
             <thead>
               <tr className="border-b border-border bg-muted/30 text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 <th className="px-4 py-2.5">Company / Contact</th>
@@ -161,50 +169,51 @@ function DraftRow({ draft }: { draft: DraftListRow }) {
       onClick={() => router.push(`/dashboard/drafts/${draft.id}`)}
       className="cursor-pointer transition-colors hover:bg-muted/40"
     >
-      <td className="max-w-[280px] px-4 py-3">
-        <div className="flex flex-col gap-0.5">
+      <td className="px-4 py-3 align-top">
+        <div className="flex min-w-0 flex-col gap-0.5">
           <Link
             href={`/dashboard/drafts/${draft.id}`}
-            className="truncate text-sm font-medium hover:underline"
+            className="block truncate text-sm font-medium hover:underline"
             onClick={(e) => e.stopPropagation()}
           >
             {draft.companyName ?? "(unknown company)"}
           </Link>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="truncate">{draft.contactName ?? "(no contact)"}</span>
+          <div className="truncate text-xs text-muted-foreground">
+            <span>{draft.contactName ?? "(no contact)"}</span>
             {draft.contactType ? (
-              <span className="text-muted-foreground/70">- {draft.contactType}</span>
+              <span className="text-muted-foreground/70"> - {draft.contactType}</span>
             ) : null}
           </div>
         </div>
       </td>
-      <td className="max-w-[320px] px-4 py-3">
+      <td className="px-4 py-3 align-top">
         <p className="truncate text-sm text-muted-foreground">
           {draft.subject1 ?? "(no subject)"}
         </p>
       </td>
-      <td className="px-4 py-3 text-sm">
-        <div className="flex flex-col">
+      <td className="px-4 py-3 align-top text-sm">
+        <div className="flex min-w-0 flex-col">
           <span className="truncate">{draft.pitchType ?? "-"}</span>
           {draft.subPitch ? (
             <span className="truncate text-xs text-muted-foreground">{draft.subPitch}</span>
           ) : null}
         </div>
       </td>
-      <td className="max-w-[180px] px-4 py-3">
-        <span className="truncate text-sm text-muted-foreground">
+      <td className="px-4 py-3 align-top">
+        <div className="truncate text-sm text-muted-foreground" title={draft.sender ?? undefined}>
           {draft.sender ?? "-"}
-        </span>
+        </div>
       </td>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 align-top">
         {draft.modelUsed ? (
           <Badge
             variant="outline"
             className={cn(
-              "whitespace-nowrap font-mono text-[10px] normal-case",
+              "max-w-full truncate whitespace-nowrap font-mono text-[10px] normal-case",
               draft.modelUsed.includes("openai/gpt-4.1-mini") &&
                 "border-amber-500/40 text-amber-700 dark:text-amber-300",
             )}
+            title={draft.modelUsed}
           >
             {draft.modelUsed}
           </Badge>
