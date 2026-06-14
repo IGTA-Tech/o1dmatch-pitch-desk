@@ -9,6 +9,8 @@ import { generateDraftAction } from "@/server/actions/generate-draft";
 import { generateInputSchema } from "@/lib/ai/schema";
 
 export const runtime = "nodejs";
+// 300s headroom for OpenRouter outliers; well within Vercel Pro's 800s cap.
+export const maxDuration = 300;
 
 export async function POST(req: Request) {
   const { userId } = await auth();
