@@ -186,7 +186,18 @@ function DraftRow({ draft }: { draft: DraftListRow }) {
             </span>
           )}
           <div className="truncate text-xs text-muted-foreground">
-            <span>{draft.contactName ?? "(no contact)"}</span>
+            {draft.contactId ? (
+              <Link
+                href={`/dashboard/contacts/${draft.contactId}`}
+                className="hover:text-foreground hover:underline"
+                onClick={(e) => e.stopPropagation()}
+                title={`Open ${draft.contactName ?? "contact"} profile`}
+              >
+                {draft.contactName ?? "(no contact)"}
+              </Link>
+            ) : (
+              <span>{draft.contactName ?? "(no contact)"}</span>
+            )}
             {draft.contactType ? (
               <span className="text-muted-foreground/70"> - {draft.contactType}</span>
             ) : null}
