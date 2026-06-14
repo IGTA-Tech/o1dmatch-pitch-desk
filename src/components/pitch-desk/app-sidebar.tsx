@@ -24,7 +24,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "New draft", icon: Sparkles },
-  { href: "/dashboard/drafts", label: "Drafts", icon: FileText, disabled: true },
+  { href: "/dashboard/drafts", label: "Drafts", icon: FileText },
   { href: "/dashboard/companies", label: "Companies", icon: Building2, disabled: true },
   { href: "/dashboard/contacts", label: "Contacts", icon: Users, disabled: true },
   { href: "/dashboard/activity", label: "Activity", icon: Activity, disabled: true },
@@ -108,7 +108,13 @@ export function AppSidebar() {
         <ul className="space-y-0.5">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
-            const active = pathname === item.href;
+            // /dashboard is an exact match only (otherwise it would light up on
+            // every sub-route). Everything else lights up on prefix match so
+            // /dashboard/drafts/abc highlights the Drafts item.
+            const active =
+              item.href === "/dashboard"
+                ? pathname === "/dashboard"
+                : pathname === item.href || pathname.startsWith(item.href + "/");
             const Content = (
               <span
                 className={cn(
