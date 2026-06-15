@@ -25,17 +25,48 @@ const SYSTEM_PROMPT = [
   "  Talent Acquisition, General Counsel, Founder / CEO, President,",
   "  University Relations, Technical Contact, Staffing / Agency Contact,",
   "  Attorney Contact, Generic Inbox, Unknown.",
-  "- If the contact's role is unclear from the text, use \"Unknown\".",
+  "- If the contact's role is unclear, use \"Unknown\".",
+  "- Roles containing the words \"immigration\", \"mobility\", \"visa team\", or",
+  "  groups like \"HR Immigration\" or \"Immigration Team\" map to Global Mobility.",
   "- Capture every distinct person. Do not deduplicate; output one entry per person.",
   "- Preserve original casing for names and titles.",
-  "- For company_strategy_notes, write a brief actionable 1-2 sentence hint",
-  "  ONLY if the text contains strategic clues (location angle, pain point,",
-  "  H-1B sensitivity, etc.). Otherwise leave it empty.",
   "- ASCII only. No emojis. No smart quotes. No em dashes.",
-  "- For occupations_hired, salary_notes, h1b_history_notes, etc., summarize",
-  "  succinctly from what the text says. Empty if not mentioned.",
-  "- For website, return only the bare domain or full URL exactly as written.",
-  "- For source_url, copy any explicit URL the text references.",
+  "",
+  "Contact name format - slash-encoded multi-person entries (CRITICAL):",
+  "Some sources (especially myvisajobs.com) encode multiple contacts in one line:",
+  "  \"First1/First2/First3 Last1/Last2/Last3 - Title or Team Name\"",
+  "  followed by a shared phone and a shared email.",
+  "The count of first names always equals the count of last names; pair them by index.",
+  "Worked example - this single line represents FOUR contacts:",
+  "  \"Andreas/Robert/Enis/Randi Gerling/Herreria/Garcia/Brazinski - Amazon Immigration Team\"",
+  "  ->",
+  "    1. Andreas Gerling   (title: Amazon Immigration Team)",
+  "    2. Robert Herreria   (title: Amazon Immigration Team)",
+  "    3. Enis Garcia       (title: Amazon Immigration Team)",
+  "    4. Randi Brazinski   (title: Amazon Immigration Team)",
+  "Each contact in the split gets the SAME email, phone, and title that followed the line.",
+  "Slashes may have surrounding spaces (\"A / B\") or be tight (\"A/B\") - both are valid.",
+  "Names may include initials like \"Robert L.\" - keep the initial intact.",
+  "Apply the same rule to Green Card contact blocks (\"Daniel/Chongli Van Den Handel/Wu\"",
+  "= Daniel Van Den Handel + Chongli Wu).",
+  "Never output a contact_name that still contains a slash.",
+  "",
+  "Company strategy notes:",
+  "- Write a brief actionable 1-2 sentence hint ONLY if the text contains real",
+  "  strategic clues (visa rank, H-1B sensitivity, location angle, hiring pain,",
+  "  research vs ops mix, etc.). Otherwise leave it empty.",
+  "",
+  "Summary fields:",
+  "- occupations_hired: comma-separated short list from the page's top H-1B/GC",
+  "  occupations if present.",
+  "- h1b_history_notes: LCA count, rank, FY year, H-1B Dependent flag, recent",
+  "  approval/denial split if mentioned.",
+  "- green_card_history_notes: LC counts, PERM details.",
+  "- o1_history_notes: anything about O-1 history; empty if not mentioned.",
+  "- salary_notes: prevailing wage scale, salary ranges, anything quantitative.",
+  "- company_size: prefer raw employee count if given (\"46,935 employees\").",
+  "- other_locations: comma-separated short list of secondary worksites.",
+  "- website / source_url: bare domain or URL exactly as written; empty if absent.",
 ].join("\n");
 
 export interface ExtractResult {
@@ -43,6 +74,61 @@ export interface ExtractResult {
   data?: ExtractedData;
   error?: string;
   latencyMs?: number;
+}
+
+/**
+ * Safety net for the slash-encoded multi-contact format the AI is *supposed*
+ * to split in the prompt. If anything slips through with a slash still in the
+ * name field, expand here deterministically.
+ *
+ * Input pattern: { contact_name: "Andreas/Robert/Enis Gerling/Herreria/Garcia", ... }
+ * Output: three contacts, each inheriting the parent's email/phone/title/etc.
+ *
+ * Rules:
+ * - Both the firsts portion and lasts portion must contain the same number of
+ *   slash-separated tokens. If they don't match, we leave the entry alone
+ *   (the AI did something we don't recognize, no point guessing).
+ * - A name with no slash is left untouched.
+ * - Surrounding spaces around slashes are tolerated.
+ */
+function expandSlashEncodedContacts(
+  contacts: ExtractedData["contacts"],
+): ExtractedData["contacts"] {
+  const out: ExtractedData["contacts"] = [];
+  for (const c of contacts) {
+    const name = (c.contact_name ?? "").trim();
+    if (!name.includes("/")) {
+      out.push(c);
+      continue;
+    }
+
+    // Try to split: everything up to the last "group" of tokens is "firsts",
+    // the trailing tokens are "lasts". The naive split is: find the space that
+    // separates the last "firsts" token from the first "lasts" token.
+    // Pattern observed: "First1/First2/First3 Last1/Last2/Last3" - one space
+    // between the firsts cluster and the lasts cluster.
+    // We split on the first whitespace that has a "/" both before AND after it.
+    const match = name.match(/^([^\s]+(?:\s*\/\s*[^\s]+)+)\s+([^\s]+(?:\s*\/\s*[^\s]+)+)$/);
+    if (!match) {
+      out.push(c);
+      continue;
+    }
+
+    const firsts = match[1].split(/\s*\/\s*/).map((s) => s.trim()).filter(Boolean);
+    const lasts = match[2].split(/\s*\/\s*/).map((s) => s.trim()).filter(Boolean);
+    if (firsts.length !== lasts.length || firsts.length === 0) {
+      out.push(c);
+      continue;
+    }
+
+    for (let i = 0; i < firsts.length; i++) {
+      out.push({
+        ...c,
+        contact_name: `${firsts[i]} ${lasts[i]}`,
+      });
+    }
+  }
+  return out;
 }
 
 export async function extractFieldsAction(rawText: string): Promise<ExtractResult> {
@@ -112,7 +198,13 @@ export async function extractFieldsAction(rawText: string): Promise<ExtractResul
       maxRetries: 1,
     });
 
-    const data = deepSanitize(object) as ExtractedData;
+    const rawData = deepSanitize(object) as ExtractedData;
+    // Safety net: expand any slash-encoded contact names the AI did not split
+    // itself. Determinstic, so we always end up with clean rows.
+    const data: ExtractedData = {
+      ...rawData,
+      contacts: expandSlashEncodedContacts(rawData.contacts ?? []),
+    };
 
     await db.insert(auditLog).values({
       userId: senderId,
@@ -121,6 +213,7 @@ export async function extractFieldsAction(rawText: string): Promise<ExtractResul
         chars: cleaned.length,
         companyName: data.company.company_name,
         contactCount: data.contacts.length,
+        rawContactCount: rawData.contacts?.length ?? 0,
       },
     });
 
