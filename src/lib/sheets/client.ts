@@ -1,33 +1,88 @@
 /**
- * googleapis client using a service-account JSON pasted into env.
+ * googleapis client - service account credentials read from env.
  * Server-only - never import from a client component.
+ *
+ * Supports two env-var layouts so users do not have to fight Vercel's
+ * paste behaviour on the multi-line private key:
+ *
+ *   Path A (preferred - paste-resistant):
+ *     GOOGLE_SERVICE_ACCOUNT_EMAIL=...
+ *     GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...
+ *
+ *   Path B (legacy - the whole service account JSON in one var):
+ *     GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account", ...}
+ *
+ * Path B has a built-in repair pass that re-escapes real newlines inside
+ * the JSON string, because Vercel's env-var input converts `\n` escape
+ * sequences into actual newlines on some pastes - which breaks JSON.parse.
  */
 import "server-only";
 import { google, type sheets_v4 } from "googleapis";
 
 let cached: sheets_v4.Sheets | null = null;
 
-function parseServiceAccountJson(): {
-  client_email: string;
-  private_key: string;
-} | null {
+function normalizePrivateKey(raw: string): string {
+  // Service-account private keys frequently arrive with `\n` as two literal
+  // characters that need to become real newlines for the JWT signer.
+  // Already-newlined keys are left untouched.
+  return raw.replace(/\\n/g, "\n");
+}
+
+function parseFromSplitEnv(): { client_email: string; private_key: string } | null {
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const key = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+  if (!email || !key) return null;
+  return {
+    client_email: email.trim(),
+    private_key: normalizePrivateKey(key.trim()),
+  };
+}
+
+function parseFromJsonEnv(): { client_email: string; private_key: string } | null {
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   if (!raw) return null;
+
+  // First attempt: parse as-is. Works when the value is clean one-line JSON.
   try {
     const parsed = JSON.parse(raw);
     return {
       client_email: parsed.client_email,
-      private_key: String(parsed.private_key ?? "").replace(/\\n/g, "\n"),
+      private_key: normalizePrivateKey(String(parsed.private_key ?? "")),
     };
-  } catch (err) {
-    console.error("[sheets] GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON:", err);
-    return null;
+  } catch (firstErr) {
+    // Repair attempt: when Vercel (or any paste target) expands literal `\n`
+    // escape sequences into real newline characters, JSON.parse fails with
+    // "Bad control character in string literal". Re-escape every real
+    // newline and re-parse. This is safe for one-line minified JSON which
+    // is the form Google generates.
+    try {
+      const repaired = raw.replace(/\r?\n/g, "\\n");
+      const parsed = JSON.parse(repaired);
+      console.warn(
+        "[sheets] GOOGLE_SERVICE_ACCOUNT_JSON had real newlines inside the string - auto-repaired.",
+      );
+      return {
+        client_email: parsed.client_email,
+        private_key: normalizePrivateKey(String(parsed.private_key ?? "")),
+      };
+    } catch (secondErr) {
+      console.error(
+        "[sheets] GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON and auto-repair failed.",
+        { firstErr: String(firstErr), secondErr: String(secondErr) },
+      );
+      return null;
+    }
   }
+}
+
+function parseServiceAccount(): { client_email: string; private_key: string } | null {
+  // Prefer split env vars when present.
+  return parseFromSplitEnv() ?? parseFromJsonEnv();
 }
 
 export function getSheetsClient(): sheets_v4.Sheets | null {
   if (cached) return cached;
-  const creds = parseServiceAccountJson();
+  const creds = parseServiceAccount();
   if (!creds) return null;
 
   const auth = new google.auth.JWT({
