@@ -41,20 +41,35 @@ if (!json.client_email || !json.private_key) {
 }
 
 const escaped = json.private_key.replace(/\n/g, "\\n");
+const base64 = Buffer.from(json.private_key, "utf-8").toString("base64");
 
 console.log("");
 console.log("===== COPY THIS AS  GOOGLE_SERVICE_ACCOUNT_EMAIL =====");
 console.log(json.client_email);
 console.log("===== END EMAIL =====");
 console.log("");
+console.log("=== RECOMMENDED: base64 path - paste-bulletproof ===");
+console.log("Set Vercel env var GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_B64 to:");
+console.log("");
+console.log("===== COPY THIS AS  GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_B64 =====");
+console.log(base64);
+console.log("===== END BASE64 KEY =====");
+console.log("");
+console.log("Then DELETE these old env vars on Vercel if they exist:");
+console.log("  GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY");
+console.log("  GOOGLE_SERVICE_ACCOUNT_JSON");
+console.log("");
+console.log("---------------------------------------------------");
+console.log("");
+console.log("=== LEGACY: \\n-escaped path (only if base64 is awkward) ===");
+console.log("");
 console.log("===== COPY THIS AS  GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY =====");
 console.log(escaped);
 console.log("===== END PRIVATE KEY =====");
 console.log("");
 console.log("Tips:");
-console.log("- Select EXACTLY the lines between the delimiters - no surrounding blanks.");
-console.log("- Paste into Vercel Settings > Environment Variables.");
-console.log("- After pasting, verify the private key value still contains literal `\\n` text (two chars).");
-console.log("- Apply to Production + Preview.");
-console.log("- Delete any old GOOGLE_SERVICE_ACCOUNT_JSON variable to avoid confusion.");
+console.log("- The base64 string is alphanumeric + +/= - it cannot be corrupted by any paste.");
+console.log("- After pasting into Vercel, re-open the env var to confirm the value is intact.");
+console.log("- Apply env vars to Production + Preview.");
+console.log("- Resolution order in code: B64 > split escape > legacy JSON.");
 console.log("");

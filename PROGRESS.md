@@ -11,10 +11,11 @@
 |---|---|
 | Local working tree | `C:\Coding Projects\O1DMatch Pitch Desk\o1dmatch-pitch-desk` |
 | GitHub repo | <https://github.com/IGTA-Tech/o1dmatch-pitch-desk> |
-| Live deploy (Vercel) | (the `*.vercel.app` URL Vercel assigned after first deploy) |
-| Custom domain (planned, not set up yet) | `pitchdesk.o1dmatch.com` |
+| **Live production URL** | <https://pitchdesk.o1dmatch.com> |
+| Vercel default URL (still works) | the `*.vercel.app` URL Vercel assigned at first deploy |
 | Neon Postgres host | `ep-small-poetry-ajgygqx9-pooler.c-3.us-east-2.aws.neon.tech` |
-| Clerk app | Test instance, claimed - app shows `pk_test_YXB0LXN0YXJmaXNoLTQwLmNsZXJrLmFjY291bnRzLmRldiQ` style key |
+| Clerk app (PRODUCTION - secondary instance) | `pk_live_*` keys in Vercel; Clerk frontend at `clerk.pitchdesk.o1dmatch.com`; verification emails from `accounts@pitchdesk.o1dmatch.com` |
+| Clerk app (DEV / local) | Test keys still in `.env.local`; `npm run dev` continues to use these |
 | Google Sheet (mirror target) | <https://docs.google.com/spreadsheets/d/19Z9DmMPmRIL4jOnLqRsSEq1leJszHCWzmKbPsJG7GLk/edit> |
 | GCP project for Sheets (CURRENT) | `cold-email-o1dmatch` |
 | Active service account | `sheet-reader@cold-email-o1dmatch.iam.gserviceaccount.com` |
@@ -99,22 +100,10 @@ All secrets live in `.env.local` (gitignored) on this machine and in Vercel env 
 
 ## In-flight (where to pick up next)
 
-### #1 - Verify the Google Sheet mirror works on Vercel (CURRENT)
-- User just switched to a fresh service account in a different GCP project (`cold-email-o1dmatch`).
-- New service account email: `sheet-reader@cold-email-o1dmatch.iam.gserviceaccount.com`
-- They need to:
-  1. Enable Sheets API in the `cold-email-o1dmatch` project at <https://console.cloud.google.com/apis/library/sheets.googleapis.com?project=cold-email-o1dmatch>
-  2. Share the sheet with the new email as Editor
-  3. Update `GOOGLE_SERVICE_ACCOUNT_EMAIL` and `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` env vars on Vercel using the values from `node scripts/show-credentials.mjs "C:\Users\hp\Downloads\cold-email-o1dmatch-8454a942f183.json"`
-  4. Delete the old broken `GOOGLE_SERVICE_ACCOUNT_JSON` env var
-  5. Redeploy with cache disabled
-  6. Generate a test draft on the live URL
-  7. Confirm: no red banner in output panel, no `[sheets]` errors in Vercel logs, new row in the sheet's Drafts tab.
-
-If still failing, paste the new Vercel log line. Probable causes ranked:
-- Sheet not actually shared with the new email
-- Sheets API not enabled in the new project
-- Key value still got corrupted during paste
+### #1 - Google Sheet mirror still failing on Vercel (CURRENT)
+- Production Clerk: DONE. App now at <https://pitchdesk.o1dmatch.com> with `pk_live_*` keys.
+- Service account `sheet-reader@cold-email-o1dmatch.iam.gserviceaccount.com` is shared on the sheet, Sheets API enabled in `cold-email-o1dmatch` project, env vars updated.
+- BUT: third paste attempt on the private key value still gets corrupted somewhere in Vercel's pipeline. Failure mode: `[sheets] append failed: error:1E08010C:DECODER routines::unsupported`. Plain text and `\n`-escaped formats both broke. Adding a base64-encoded credential path next so paste corruption is mathematically impossible.
 
 ### #2 - Custom subdomain `pitchdesk.o1dmatch.com`
 - Not done yet.

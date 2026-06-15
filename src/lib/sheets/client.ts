@@ -2,19 +2,24 @@
  * googleapis client - service account credentials read from env.
  * Server-only - never import from a client component.
  *
- * Supports two env-var layouts so users do not have to fight Vercel's
- * paste behaviour on the multi-line private key:
+ * Three env-var layouts supported, tried in order:
  *
- *   Path A (preferred - paste-resistant):
+ *   Path A (RECOMMENDED for cloud - bulletproof against paste corruption):
+ *     GOOGLE_SERVICE_ACCOUNT_EMAIL=sheet-reader@...iam.gserviceaccount.com
+ *     GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_B64=<base64 of the full PEM key>
+ *   Base64 is alphanumeric + a few punctuation marks - no escapes, no
+ *   newlines, no characters any env-var UI can possibly mangle.
+ *
+ *   Path B (split, escape-encoded - works if paste behaves):
  *     GOOGLE_SERVICE_ACCOUNT_EMAIL=...
  *     GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...
  *
- *   Path B (legacy - the whole service account JSON in one var):
+ *   Path C (legacy - whole service-account JSON in one var):
  *     GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account", ...}
  *
- * Path B has a built-in repair pass that re-escapes real newlines inside
- * the JSON string, because Vercel's env-var input converts `\n` escape
- * sequences into actual newlines on some pastes - which breaks JSON.parse.
+ * Path C has a built-in repair pass that re-escapes real newlines inside
+ * the JSON string, because some env-var UIs convert `\n` escape sequences
+ * into actual newlines on paste - which breaks JSON.parse.
  */
 import "server-only";
 import { google, type sheets_v4 } from "googleapis";
@@ -26,6 +31,24 @@ function normalizePrivateKey(raw: string): string {
   // characters that need to become real newlines for the JWT signer.
   // Already-newlined keys are left untouched.
   return raw.replace(/\\n/g, "\n");
+}
+
+function parseFromBase64Env(): { client_email: string; private_key: string } | null {
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const b64 = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_B64;
+  if (!email || !b64) return null;
+  try {
+    const decoded = Buffer.from(b64.trim(), "base64").toString("utf-8");
+    // Defensive: if someone base64-encoded a value that already had literal \n
+    // escapes, normalize them too.
+    return {
+      client_email: email.trim(),
+      private_key: normalizePrivateKey(decoded),
+    };
+  } catch (err) {
+    console.error("[sheets] GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_B64 is not valid base64:", err);
+    return null;
+  }
 }
 
 function parseFromSplitEnv(): { client_email: string; private_key: string } | null {
@@ -76,8 +99,8 @@ function parseFromJsonEnv(): { client_email: string; private_key: string } | nul
 }
 
 function parseServiceAccount(): { client_email: string; private_key: string } | null {
-  // Prefer split env vars when present.
-  return parseFromSplitEnv() ?? parseFromJsonEnv();
+  // Tried in order: base64 (paste-bulletproof) -> split escape -> legacy JSON.
+  return parseFromBase64Env() ?? parseFromSplitEnv() ?? parseFromJsonEnv();
 }
 
 export function getSheetsClient(): sheets_v4.Sheets | null {
