@@ -6,8 +6,6 @@ build/
 *.pem
 
 # Env
-.env
-.env.local
 .env*.local
 
 # Logs
@@ -27,3 +25,7 @@ drizzle/meta/
 
 # Local-only progress ledger - never pushed
 PROGRESS.md
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+config.bat
