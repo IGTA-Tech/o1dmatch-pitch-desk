@@ -26,7 +26,7 @@ export default async function Home() {
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/sign-up">Request access</Link>
+            <Link href="/sign-up">Sign up</Link>
           </Button>
         </div>
       </div>
