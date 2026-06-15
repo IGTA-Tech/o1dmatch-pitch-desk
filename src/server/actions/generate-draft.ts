@@ -5,7 +5,12 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { auditLog, companies, contacts, drafts } from "@/lib/db/schema";
 import { generateDraft as runPipeline } from "@/lib/ai/generate-draft";
-import { mirrorDraftToSheet } from "@/lib/sheets/mirror";
+import {
+  mirrorDraftToSheet,
+  mirrorCompanyToSheet,
+  mirrorContactToSheet,
+  mirrorAuditLogToSheet,
+} from "@/lib/sheets/mirror";
 import type { GenerateInput } from "@/lib/ai/schema";
 
 export interface GenerateActionResult {
@@ -42,6 +47,7 @@ export async function generateDraftAction(input: GenerateInput): Promise<Generat
       .limit(1);
 
     let companyId: string;
+    let newCompanyRow: typeof companies.$inferSelect | undefined;
     if (existingCompany) {
       companyId = existingCompany.id;
       // Merge: only overwrite fields that were previously empty so the user's
@@ -84,7 +90,8 @@ export async function generateDraftAction(input: GenerateInput): Promise<Generat
           companyStrategyNotes: input.company.company_strategy_notes,
           sourceUrl: input.company.source_url,
         })
-        .returning({ id: companies.id });
+        .returning();
+      newCompanyRow = inserted;
       companyId = inserted.id;
     }
 
@@ -101,6 +108,7 @@ export async function generateDraftAction(input: GenerateInput): Promise<Generat
       .limit(1);
 
     let contactId: string;
+    let newContactRow: typeof contacts.$inferSelect | undefined;
     if (existingContact) {
       contactId = existingContact.id;
       await db
@@ -132,7 +140,8 @@ export async function generateDraftAction(input: GenerateInput): Promise<Generat
           notes: input.contact.contact_notes,
           linkedinUrl: input.contact.linkedin_url,
         })
-        .returning({ id: contacts.id });
+        .returning();
+      newContactRow = inserted;
       contactId = inserted.id;
     }
 
@@ -168,18 +177,33 @@ export async function generateDraftAction(input: GenerateInput): Promise<Generat
       })
       .returning();
 
-    await db.insert(auditLog).values({
-      userId: senderId,
-      action: "draft.generated",
-      companyId,
-      contactId,
-      draftId: insertedDraft.id,
-      notes: { modelUsed: meta.modelUsed, fellBack: meta.fellBack, latencyMs: meta.latencyMs },
-    });
+    const [insertedAuditEntry] = await db
+      .insert(auditLog)
+      .values({
+        userId: senderId,
+        action: "draft.generated",
+        companyId,
+        contactId,
+        draftId: insertedDraft.id,
+        notes: { modelUsed: meta.modelUsed, fellBack: meta.fellBack, latencyMs: meta.latencyMs },
+      })
+      .returning();
 
     let sheetMirror: { ok: boolean; error?: string } | undefined;
     if (input.controls.saveToSheet) {
-      sheetMirror = await mirrorDraftToSheet(insertedDraft);
+      // Fire all four mirrors in parallel. The Drafts result is what surfaces
+      // in the UI (it's the user-facing one). Companies and Contacts are only
+      // mirrored on the FIRST insert (dedup hit means the sheet already has
+      // that row from when the company/contact was originally created). Audit
+      // log is appended every time so the sheet has the same activity trail
+      // as the Activity tab.
+      const [draftResult] = await Promise.all([
+        mirrorDraftToSheet(insertedDraft),
+        newCompanyRow ? mirrorCompanyToSheet(newCompanyRow) : Promise.resolve({ ok: true }),
+        newContactRow ? mirrorContactToSheet(newContactRow) : Promise.resolve({ ok: true }),
+        mirrorAuditLogToSheet(insertedAuditEntry),
+      ]);
+      sheetMirror = draftResult;
     }
 
     return {
