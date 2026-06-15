@@ -17,6 +17,8 @@ interface Props {
   bulkProgress?: BulkProgress | null;
   /** Hint to display in the status text while the call is in flight. */
   generatingModel?: string;
+  /** Most recent sheet-mirror outcome. ok:false stays visible until next gen. */
+  sheetStatus?: { ok: boolean; error?: string } | null;
 }
 
 function OutputCard({
@@ -101,6 +103,7 @@ export function OutputsPanel({
   fellBack,
   bulkProgress,
   generatingModel,
+  sheetStatus,
 }: Props) {
   return (
     <div className="flex flex-col rounded-xl border border-border bg-card lg:h-full">
@@ -135,6 +138,30 @@ export function OutputsPanel({
       <div className="space-y-4 px-5 py-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
         {isGenerating && !output ? <Skeleton /> : null}
         {!isGenerating && !output ? <EmptyState /> : null}
+
+        {sheetStatus && sheetStatus.ok === false ? (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 size-4 text-destructive" />
+              <div className="flex-1 text-sm">
+                <p className="font-medium text-destructive">
+                  Draft saved to database, but Google Sheet mirror failed.
+                </p>
+                <p className="mt-1 text-xs text-destructive/90">
+                  The team sheet did not get a new row for this draft. Common causes:
+                  GOOGLE_SHEET_ID or GOOGLE_SERVICE_ACCOUNT_JSON missing or mangled in
+                  Vercel; the service account does not have Editor access on the sheet;
+                  or the Sheets API is not enabled in the GCP project.
+                </p>
+                {sheetStatus.error ? (
+                  <p className="mt-1.5 font-mono text-[11px] text-destructive/80">
+                    {sheetStatus.error}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {output ? (
           <>

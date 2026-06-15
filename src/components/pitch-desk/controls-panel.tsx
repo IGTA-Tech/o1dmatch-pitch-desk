@@ -207,14 +207,37 @@ export function ControlsPanel({
             />
             Include signoff
           </label>
-          <label className="flex items-center gap-2 text-sm">
+          <label className="flex items-start gap-2 text-sm">
             <input
               type="checkbox"
               checked={value.saveToSheet}
-              onChange={(e) => set("saveToSheet", e.target.checked)}
-              className="size-4 rounded border-border"
+              onChange={(e) => {
+                // Allow turning ON without confirmation. Confirm before turning OFF
+                // because the sheet is the team's shared audit trail - silently
+                // turning it off was the #1 way drafts went missing from logs.
+                if (!e.target.checked) {
+                  const ok = window.confirm(
+                    "Turn off Google Sheet mirroring?\n\n" +
+                      "This draft (and any others you generate with the box off) will " +
+                      "still save to the database, but they will NOT appear in the team " +
+                      "Google Sheet that everyone watches.\n\n" +
+                      "Only do this for one-off tests. Re-enable as soon as you are done.\n\n" +
+                      "Click OK to turn off, or Cancel to keep mirroring on.",
+                  );
+                  if (!ok) return;
+                }
+                set("saveToSheet", e.target.checked);
+              }}
+              className="mt-0.5 size-4 rounded border-border"
             />
-            Mirror to Google Sheet
+            <span className="flex flex-col">
+              <span>Mirror to Google Sheet</span>
+              {!value.saveToSheet ? (
+                <span className="text-[11px] text-amber-700 dark:text-amber-400">
+                  Off - drafts will not appear in the team sheet.
+                </span>
+              ) : null}
+            </span>
           </label>
         </div>
 

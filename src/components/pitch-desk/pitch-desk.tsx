@@ -8,6 +8,7 @@ import { CompanyPanel } from "./company-panel";
 import { ContactsPanel } from "./contacts-panel";
 import { ControlsPanel } from "./controls-panel";
 import { OutputsPanel } from "./outputs-panel";
+import { QuickPaste } from "./quick-paste";
 import {
   emptyCompany,
   emptyContact,
@@ -50,6 +51,9 @@ export function PitchDesk({ settings, mockMode }: Props) {
     total: number;
     contactName: string;
   } | null>(null);
+  const [sheetStatus, setSheetStatus] = React.useState<{ ok: boolean; error?: string } | null>(
+    null,
+  );
 
   const buildInput = React.useCallback(
     (index: number, mode: "primary" | "bulk"): GenerateInput => {
@@ -96,18 +100,23 @@ export function PitchDesk({ settings, mockMode }: Props) {
           modelUsed: result.meta?.modelUsed ?? "unknown",
           fellBack: !!result.meta?.fellBack,
         });
-        toast.success(
-          result.sheetMirror?.ok === false
-            ? "Draft saved. Sheet mirror failed - check logs."
-            : "Draft generated and saved.",
-        );
+        // Persist the sheet outcome so the user sees a visible banner, not just
+        // a toast that disappears. null means "not attempted" (saveToSheet off).
+        setSheetStatus(controls.saveToSheet ? (result.sheetMirror ?? null) : null);
+        if (result.sheetMirror?.ok === false) {
+          toast.error("Sheet mirror failed - see banner above the draft for details.");
+        } else if (result.sheetMirror?.ok) {
+          toast.success("Draft generated, saved to DB, mirrored to sheet.");
+        } else {
+          toast.success("Draft generated and saved.");
+        }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : String(err));
       } finally {
         setIsGenerating(false);
       }
     },
-    [company.company_name, contacts, buildInput],
+    [company.company_name, contacts, buildInput, controls.saveToSheet],
   );
 
   const runAll = React.useCallback(async () => {
@@ -151,6 +160,9 @@ export function PitchDesk({ settings, mockMode }: Props) {
           modelUsed: result.meta?.modelUsed ?? "unknown",
           fellBack: !!result.meta?.fellBack,
         });
+        // Reflect the sheet outcome of the most recent contact so any failure
+        // surfaces in the persistent banner.
+        setSheetStatus(controls.saveToSheet ? (result.sheetMirror ?? null) : null);
       }
       if (successCount > 0) {
         toast.success(`Generated ${successCount} of ${total} drafts.`);
@@ -159,7 +171,7 @@ export function PitchDesk({ settings, mockMode }: Props) {
       setIsGenerating(false);
       setBulkProgress(null);
     }
-  }, [company.company_name, contacts, buildInput]);
+  }, [company.company_name, contacts, buildInput, controls.saveToSheet]);
 
   // Step indicators on each tab
   const companyReady = company.company_name.trim().length > 0;
@@ -170,7 +182,19 @@ export function PitchDesk({ settings, mockMode }: Props) {
   return (
     <div className="grid grid-cols-1 gap-6 px-4 py-6 md:px-6 md:py-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
       {/* Left: input tabs */}
-      <section className="min-w-0">
+      <section className="min-w-0 space-y-4">
+        <QuickPaste
+          currentCompany={company}
+          currentContacts={contacts}
+          onApply={(c, cs) => {
+            setCompany(c);
+            setContacts(cs);
+            // Jump to the Company tab so the user immediately sees what was
+            // filled in.
+            setActiveTab("company");
+          }}
+        />
+
         <div className="rounded-xl border border-border bg-card">
           <Tabs
             value={activeTab}
@@ -249,6 +273,7 @@ export function PitchDesk({ settings, mockMode }: Props) {
             modelUsed={meta?.modelUsed}
             fellBack={meta?.fellBack}
             bulkProgress={bulkProgress}
+            sheetStatus={sheetStatus}
           />
         </div>
       </section>

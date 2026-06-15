@@ -36,6 +36,43 @@ const WORD_RANGES: Record<string, { min: number; max: number }> = {
   follow_up_email: { min: 50, max: 95 },
 };
 
+/**
+ * When the model returns an email body as one wall of text (no \n\n), try to
+ * recover natural paragraph breaks. Heuristics:
+ *  - If single \n already separates lines, double them so visible paragraph
+ *    breaks appear.
+ *  - Otherwise insert \n\n after sentence-ending punctuation when the next
+ *    word starts a clear new beat (capital letter following a period, ?, or !
+ *    plus a space). Skips obvious abbreviation patterns (Mr., Dr., etc.).
+ */
+function repairPackedParagraphs(text: string): string {
+  if (!text || text.includes("\n\n")) return text;
+
+  // Case 1: already has single newlines - just double them.
+  if (text.includes("\n")) {
+    return text.replace(/\n/g, "\n\n");
+  }
+
+  // Case 2: one long line. Insert \n\n after sentence ends followed by space + capital.
+  // Avoid common abbreviations.
+  const ABBR = ["Mr.", "Mrs.", "Ms.", "Dr.", "Sr.", "Jr.", "U.S.", "Inc.", "Ltd.", "Co.", "vs."];
+  let out = text;
+  // Use a placeholder approach to avoid corrupting abbreviations
+  const placeholders: string[] = [];
+  ABBR.forEach((abbr, i) => {
+    const placeholder = `__ABBR${i}__`;
+    placeholders.push(abbr);
+    out = out.split(abbr).join(placeholder);
+  });
+  // Split on sentence end + capital
+  out = out.replace(/([.?!])\s+(?=[A-Z])/g, "$1\n\n");
+  // Restore abbreviations
+  placeholders.forEach((abbr, i) => {
+    out = out.split(`__ABBR${i}__`).join(abbr);
+  });
+  return out;
+}
+
 function collectDraftText(result: PitchDeskOutput): string {
   return [
     JSON.stringify(result.employer_analysis ?? {}),
@@ -75,6 +112,18 @@ export function runQualityChecks(result: PitchDeskOutput): PitchDeskOutput {
     const range = WORD_RANGES[key];
     if (range && (wc < range.min || wc > range.max)) {
       warnings.push(`${key} is ${wc} words; target ${range.min}-${range.max}.`);
+    }
+    // Packed-text detector: emails over ~60 words with no paragraph breaks
+    // get auto-repaired so the user does not have to. If we cannot make a
+    // confident repair, flag it instead.
+    if (wc > 60 && !text.includes("\n\n")) {
+      const repaired = repairPackedParagraphs(text);
+      if (repaired !== text) {
+        result.drafts[key] = repaired;
+        warnings.push(`${key} arrived as one block; auto-inserted paragraph breaks.`);
+      } else {
+        warnings.push(`${key} has no paragraph breaks - add blank lines manually.`);
+      }
     }
   }
 
